@@ -39,27 +39,48 @@ Target APIs: Thirdparty API
 
 [todo - update]
 
-- `PISP` - Payment initiation service provider. In mojaloop, PISP is a _role_ adopted by a participant participating in a scheme.
-- Thirdparty API - A _new_ Mojaloop API. PISPs use the Thirdparty API to talk to the Mojaloop Switch, as opposed to the FSPIOP-API. 
-  - The Thirdparty API can be divided into 2 separate parts: Thirdparty-PISP and Thirdparty-DFSP
+- **`PISP`** - Payment Initiation Service Provider. In Mojaloop, PISP is a _role_ adopted by a participant in a scheme.
+- **Thirdparty API** - A _new_ Mojaloop API. PISPs use the Thirdparty API to talk to the Mojaloop Switch, as opposed to the FSPIOP-API. 
+  - The Thirdparty API is divided into 2 separate parts: Thirdparty-PISP and Thirdparty-DFSP
   - Thirdparty-PISP is the section of the Thirdparty API a PISP uses to communicate with the Mojaloop Switch
   - Thirdparty-DFSP is the section of the Thirdparty API a DFSP uses to communicate with the Mojaloop Switch with respect to Thirdparty functions
-
-- Auth-Service
+- **Thirdparty Transaction Request** - A transaction request initiated by a Third party, in this case a PISP
+- **Auth-Service** - Authentication and Authorization Service. A service run either by the Mojaloop Switch or by a DFSP which is responsible for managing `Consent` objects and verifying Thirdparty Transaction Requests
+- Consent Request
+- Consent
+- Credential
+- **User** - For the purposes of this document, a User is an individual or entity who holds an account with a DFSP, and also uses a PISP's application
 
 ## Change Request Background
 
-A Payment Initiation Service Provider (PISP) is a new participant _role_ within Mojaloop for participants which can 
+A Payment Initiation Service Provider (PISP) is a new participant _role_ within 
+Mojaloop. End users, who hold accounts with DFSPs, link their accounts with PISPs,
+and PISPs initiate payments on behalf of these users.
 
-As a part of a 3rd Party Transaction Request, we require a PISP to obtain the
-explicit consent from their user for each transaction initiated on their behalf.
+PISPs clear no funds and settle no accounts. PISPs iteract with a Mojaloop Switch 
+using the proposed Thirdparty API.
 
-[todo: more background?]
+For each and every transaction a PISP initiates on behalf of their user, the PISP
+must obtain confirmation from their User, by way of signing some details about the
+transaction using a private key.
+
+Account Linking is the process of establishing the trust between the DFSP, User 
+and the PISP. The key result of the account linking process is an asymmetrical 
+keypair, where the public portion of the keypair is known to the DFSP and used to 
+verify signed transactions initiated by the PISP.
+
+
 
 ## Proposed Solution
 
-[todo]
+This document proposes a solution for the linking together of a DFSP, User and PISP, 
+and the representation of that linking request and subsequent result.
 
+The proposal is broken down into the following sections:
+1. Linking Process
+2. Auth-Service
+3. New Conventions
+4. Thirdparty API
 
 ### 1. Linking Flows
 
@@ -114,7 +135,7 @@ This is followed by the generation of the credential on the user's device, and t
 
 ### 2 Auth-Service
 
-The auth-service is a new component we propose alongside the Thirdparty Linking API.
+The auth-service is a new component we propose alongside the Thirdparty API.
 
 While a `Consent` object is created by the DFSP, the auth-service is considered to be the authority on the consent object. It's responsibilities are:
 1. Storing the `Consent` Object
@@ -123,7 +144,6 @@ While a `Consent` object is created by the DFSP, the auth-service is considered 
 1. For account linking: Verifying the signed challenge and marking the `Consent.credential` as `VERIFIED`
 1. Broadcasting state changes of the `Consent` object to the associated PISP and DFSP
 1. For transfers: verifying the signed transaction challenge
-
 
 For the purposes of request routing and JWS signing, the centrally-hosted auth service should be considered its own participant in a Mojaloop switch. This means it requires:
 - A participantId. In this case we use `central-auth`
@@ -141,7 +161,7 @@ To cater for this modular design, we must keep track of _which auth service is r
 
 Upon receiving a `POST /consents` request from the DFSP, the auth-service MUST send a `POST /participants/CONSENTS/{consentId}` to the ALS, with the `fspId` field in the request body set to the auth-services' id (e.g. `central-auth` for a centrally-hosted auth-service, or the `fspId` of the DFSP for the self-hosted case).
 
-### 3 Proposed Conventions
+### 3 New Conventions
 
 The following are conventions contained within this proposal that are of note. They expand on the principles and conventions outlined in the [FSPIOP-API specification](https://docs.mojaloop.io/mojaloop-specification/documents/API%20Definition%20v1.0.html), and will likely warrant further discussion.
 
@@ -176,7 +196,64 @@ For more information, see this [pisp#28](https://github.com/mojaloop/pisp/issues
 
 In the proposed Thirdparty-API, there are a number of places where we employ [custom methods](https://google.aip.dev/136) to 
 
+From the Google API Design Principles, custom methods:
+> "provide a means to express arbitrary actions that are difficult to model using only the standard methods"
+
+For example the Generate Challenge Request, where a PISP requests a challenge on a newly created Consent Object:
+
+```
+POST /consents/{id}/generateChallenge
+HTTP 2.0
+FSPIOP-Source: PISP
+Accept: vnd..todo
+{}
+```
+
+The concept of Generating a Challenge for a previously registered Consent object is difficult to express using typical REST semantics, and so we employ the custom method `generateChallenge`.
+
 
 ## HTTP Request Descriptions
 
+[todo - finish]
+
+### `GET /participants?pispEnabled=true&role=dfsp`
+
+### `PUT /participants?pispEnabled=true&role=dfsp`
+
+### `GET /parties/OPAQUE/{id}`
+
+### `PUT /parties/OPAQUE/{id}`
+
+### `POST /consentRequests`
+
+### `PUT /consentRequests`
+
+#### `WEB` authentication channel DFSP ask
+
+#### `OTP` authentication channel DFSP ask
+
+#### `WEB` authentication channel PISP response
+
+#### `OTP` authentication channel PISP Response
+
+### `POST /consents`
+
+### `POST /consents/{id}/generateChallenge`
+
+### `PUT /consents/{id}`
+
+#### Created `consent.credential` (Auth-Service/DFSP)
+
+#### Signed `consent.credential` (PISP)
+
+#### Verified `consent.credential` (Auth-Service/DFSP)
+
+
 ## Data Models
+
+### ConsentRequest
+
+### Consent
+
+
+### Credential
