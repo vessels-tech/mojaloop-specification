@@ -101,7 +101,6 @@ then calls a `GET /parties/OPAQUE/{id}` request, where the `FSPIOP-Destination` 
 is pre-specified. See [below](#3.2-OPAQUE-ALS-lookup) for more information on this 
 request and why it is necessary.
 
-
 #### 1.3 Request Consent
 
 > Note: see [1.3 Request Consent](https://github.com/mojaloop/pisp/tree/master/docs/linking#13-request-consent)
@@ -256,21 +255,65 @@ the custom method `generateChallenge`.
 
 [todo - finish]
 
+## Accept + Content-Type Headers
+
+[todo]
+
 ### `GET /participants?pispEnabled=true&role=dfsp`
+
+The call `GET /participants?pispEnabled=true&role=dfsp` is used by the PISP
+to request a list of DFSPs who are registered on the Mojaloop switch that
+support PISP functionality. 
+
+Populating this list is outside the scope of this proposal, but it is
+assumed that a DFSP will register itself as eligible for PISP functions
+during the DFSP on-boarding phase.
+
 
 ### `PUT /participants?pispEnabled=true&role=dfsp`
 
+The call `PUT /participiants?pispEnabled=true&role=dfsp` is used by the DFSP
+as a response for the `GET /participants?pispEnabled=true&role=dfsp` call.
+The response body contains a list of DFSP Participants who support PISP
+functionality.
+
+| Name                 | Cardinality | Type                 | Description                                                                                               |
+| -------------------- | ----------- | -------------------- | --------------------------------------------------------------------------------------------------------- |
+| participants         | 0..*        | `Participant`        | A list of participants on the switch that support PISP functionality.                        |
+
+
 ### `GET /parties/OPAQUE/{id}`
+
+A `GET /parties/OPAQUE/{id}` call is made by a PISP to look up the party 
+information for a user who wishes to link their account(s) with a PISP. 
+
+In  this request, the `FSPIOP-Destination` header is set to the `fspId` of
+the DFSP selected by the end user. The `{id}` path parameter is the
+identifier used by the user to log into their account with the DFSP.
 
 ### `PUT /parties/OPAQUE/{id}`
 
+The `PUT /parties/OPAQUE/{id}` request is made by the DFSP upon a successful
+party lookup request. It contains the party identifier information for the
+user, along with a list of accounts
+
+| Name                 | Cardinality | Type                 | Description                                                                                               |
+| -------------------- | ----------- | -------------------- | --------------------------------------------------------------------------------------------------------- |
+| participants         | 0..*        | `Participant`        | A list of participants on the switch that support PISP functionality.                        |
+
+
+
 ### `POST /consentRequests`
+
+[todo]
 
 ### `PUT /consentRequests`
 
-#### `WEB` authentication channel DFSP ask
+[todo]
 
-#### `OTP` authentication channel DFSP ask
+#### `WEB` authentication channel DFSP request
+
+#### `OTP` authentication channel DFSP request
 
 #### `WEB` authentication channel PISP response
 
@@ -290,6 +333,8 @@ the custom method `generateChallenge`.
 
 
 ## Data Models
+
+### Participant
 
 ### ConsentRequest
 
