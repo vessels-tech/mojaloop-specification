@@ -10,16 +10,15 @@ Target APIs: Thirdparty API
 
 # Proposal - Allow PISPs to Link End User Accounts with a DFSP
 
-[todo - update]
-- [Proposal - Allow PISPs to Link End User Accounts with a DFSP](#proposal---Allow PISPs to Link-End-User-Accounts-with-a-DFSP)
+- [Proposal - Allow PISPs to Link End User Accounts with a DFSP](#proposal---Allow-PISPs-to-Link-End-User-Accounts-with-a-DFSP)
   - [Document History](#document-history)
   - [Supporting Documents](#supporting-documents)
   - [Definitions](#Definitions)
   - [Change Request Background](#change-request-background)
   - [Proposed Solution](#proposed-solution)
-    - [`POST /authorizations resource`](#POST-/authorizations-resource)
-    - [Request Flow](#request-flow)
-    - [Error Handling + Retries](#Error-Handling--Retries)
+      - [Linking Flows](#1-Linking-Flows)
+      - [Auth Service](#2-Auth-Service)
+      - [New Conventions](#3-New-Conventions)
   - [HTTP Request Descriptions](#HTTP-Request-Descriptions)
   - [Data Models](#data-models)
 
@@ -27,7 +26,7 @@ Target APIs: Thirdparty API
 
 | Version | Date       | Author             | Change Description         |
 | ------- | ---------- | ------------------ | -------------------------- |
-| 1.0     | 2020-10-29 | Lewis Daly        | Initial draft              |
+| 1.0     | 2020-10-30 | Lewis Daly         | Initial draft              |
 
 ## Supporting Documents
 
@@ -82,7 +81,7 @@ The proposal is broken down into the following sections:
 3. New Conventions
 4. Thirdparty API
 
-### 1. Linking Flows
+### 1 Linking Flows
 
 #### 1.1 Pre-linking
 
@@ -93,16 +92,23 @@ The PISP asks the switch which DFSPs are available to link customer accounts wit
 
 #### 1.2 Discovery
 
-> Note: see [1.2 Discovery](https://github.com/mojaloop/pisp/tree/master/docs/linking#12-discovery) for more information and sequences.
+> Note: see [1.2 Discovery](https://github.com/mojaloop/pisp/tree/master/docs/linking#12-discovery)
+for more information and sequences.
 
-After seeing a list of available DFSPs, a user should be able to select their DFSP from a list, and provide an opaque identifier they use to log in with their DFSP. The PISP then calls a `GET /parties/OPAQUE/{id}` request, where the `FSPIOP-Destination` header is pre-specified. See [below](#3-opaque-als-lookup) for more information on this request and why it is necessary.
+After seeing a list of available DFSPs, a user should be able to select their DFSP from
+a list, and provide an opaque identifier they use to log in with their DFSP. The PISP 
+then calls a `GET /parties/OPAQUE/{id}` request, where the `FSPIOP-Destination` header
+is pre-specified. See [below](#3.2-OPAQUE-ALS-lookup) for more information on this 
+request and why it is necessary.
 
 
 #### 1.3 Request Consent
 
-> Note: see [1.3 Request Consent](https://github.com/mojaloop/pisp/tree/master/docs/linking#13-request-consent) for more information and sequences.
+> Note: see [1.3 Request Consent](https://github.com/mojaloop/pisp/tree/master/docs/linking#13-request-consent)
+for more information and sequences.
 
-In this step, a PISP uses a `POST /consentRequests` call to the DFSP to initiate the consent creation process.
+In this step, a PISP uses a `POST /consentRequests` call to the DFSP to initiate the 
+consent creation process.
 
 There are 2 supported flows for this process: `WEB` and `OTP`.
 
@@ -111,27 +117,44 @@ There are 2 supported flows for this process: `WEB` and `OTP`.
 
 #### 1.4 Authentication
 
-> Note: see [1.4 Authentication](https://github.com/mojaloop/pisp/blob/master/docs/linking/README.md#14-authentication) for more information and sequences.
+> Note: see [1.4 Authentication](https://github.com/mojaloop/pisp/blob/master/docs/linking/README.md#14-authentication)
+ for more information and sequences.
 
-In the authentication phase, the user is expected to prove their identity to the DFSP. Once this is done, the DFSP will provide the User with some sort of secret (e.g. an OTP or access token). This secret is passed back to the DFSP in the `PUT /consentRequests`, which is verified by the DFSP.
+In the authentication phase, the user is expected to prove their identity to the DFSP.
+Once this is done, the DFSP will provide the User with some sort of secret (e.g. an 
+OTP or access token). This secret is passed back to the DFSP in the 
+`PUT /consentRequests`, which is verified by the DFSP.
 
 #### 1.5 Grant Consent
 
-> Note: see [1.5 Grant Consent](https://github.com/mojaloop/pisp/blob/master/docs/linking/README.md#15-grant-consent) for more information and sequences.
+> Note: see [1.5 Grant Consent](https://github.com/mojaloop/pisp/blob/master/docs/linking/README.md#15-grant-consent)
+ for more information and sequences.
 
-At this point, we have the 3 way trust relationship between the PISP, DFSP and User. It is up to the DFSP to create a new `Consent` resource, which is a representation of that trust.
+At this point, we have the 3 way trust relationship between the PISP, DFSP and User.
+It is up to the DFSP to create a new `Consent` resource, which is a representation
+of that trust.
 
-In the case of a centrally-hosted auth-service, the Switch updates the auth-service, which is then responsible for registering the consent with the ALS. See [2.2 Consent Object and the ALS](#2.2-Consent-Object-and-the-ALS) for more information.
+In the case of a centrally-hosted auth-service, the Switch updates the auth-service,
+which is then responsible for registering the consent with the ALS. See 
+[2.2 Consent Object and the ALS](#2.2-Consent-Object-and-the-ALS) for more information.
 
 #### 1.6 Credential Registration
 
-> Note: see [1.6 Credential Registration](https://github.com/mojaloop/pisp/tree/master/docs/linking#16-credential-registration) for more information and sequences.
+> Note: see [1.6 Credential Registration](https://github.com/mojaloop/pisp/tree/master/docs/linking#16-credential-registration)
+ for more information and sequences.
 
-The PISP then asks the auth-service for a challenge using the `POST /consents/{id}/generateChallenge` request. Since the consent is registered with the ALS, the PISP need not include a `FSPIOP-Destination` header. Instead, the Switch will internally look up the auth-service this request should be routed to, based on an internal `GET /participants` lookup.
+The PISP then asks the auth-service for a challenge using the 
+`POST /consents/{id}/generateChallenge` request. Since the consent is registered with
+the ALS, the PISP need not include a `FSPIOP-Destination` header. Instead, the Switch
+will internally look up the auth-service this request should be routed to, based on 
+an internal `GET /participants` lookup.
 
-The challenge is generated by the auth-service, and then returned to the PISP with a `PUT /consents/{id}` request. 
+The challenge is generated by the auth-service, and then returned to the PISP with a 
+`PUT /consents/{id}` request. 
 
-This is followed by the generation of the credential on the user's device, and the signing of the challenge. see [1.6.2 Finalizing the Credential](https://github.com/mojaloop/pisp/tree/master/docs/linking#162-finalizing-the-credential) for more information
+This is followed by the generation of the credential on the user's device, and the 
+signing of the challenge. see [1.6.2 Finalizing the Credential](https://github.com/mojaloop/pisp/tree/master/docs/linking#162-finalizing-the-credential)
+for more information
 
 ### 2 Auth-Service
 
@@ -163,21 +186,32 @@ Upon receiving a `POST /consents` request from the DFSP, the auth-service MUST s
 
 ### 3 New Conventions
 
-The following are conventions contained within this proposal that are of note. They expand on the principles and conventions outlined in the [FSPIOP-API specification](https://docs.mojaloop.io/mojaloop-specification/documents/API%20Definition%20v1.0.html), and will likely warrant further discussion.
+The following are conventions contained within this proposal that are of note. They
+expand on the principles and conventions outlined in the 
+[FSPIOP-API specification](https://docs.mojaloop.io/mojaloop-specification/documents/API%20Definition%20v1.0.html)
+, and will likely warrant further discussion.
 
 #### 3.1 Broadcast Messages
 
-Whereas the FSPIOP-API is a symmetrical API between 2 parties, the Thirdparty-API breaks with this convention. We now have 3 parties: a PISP, DFSP and auth-service. There are times where a DFSP or auth-service needs to send HTTP requests to 2 parties at a time, such as `CRED-19`, when [the auth-service informs both the PISP and DFSP of a registered credential](https://github.com/mojaloop/pisp/tree/master/docs/linking#162-finalizing-the-credential).
+Whereas the FSPIOP-API is a symmetrical API between 2 parties, the Thirdparty-API 
+breaks with this convention. We now have 3 parties: a PISP, DFSP and auth-service. 
+There are times where a DFSP or auth-service needs to send HTTP requests to 2 parties 
+at a time, such as `CRED-19`, when [the auth-service informs both the PISP and DFSP of a registered credential](https://github.com/mojaloop/pisp/tree/master/docs/linking#162-finalizing-the-credential).
 
-Instead of sending 2 separate HTTP Requests to the switch, we propose that a participant be able to set multiple HTTP Header values for the `FSPIOP-Destination` header. 
+Instead of sending 2 separate HTTP Requests to the switch, we propose that a participant
+be able to set multiple HTTP Header values for the `FSPIOP-Destination` header. 
 
-For more information, see [pisp#79](https://github.com/mojaloop/pisp/issues/79) for a detailed proposal of this new convention.
+For more information, see [pisp#79](https://github.com/mojaloop/pisp/issues/79) 
+for a detailed proposal of this new convention.
 
 #### 3.2 `OPAQUE` ALS lookup
 
-At the start of the linking process, we would like to be able to offer a user experience where, after selecting the DFSP they hold an account with, the user can enter _any_ identifier they use to log in with their DFSP.
+At the start of the linking process, we would like to be able to offer a user experience
+where, after selecting the DFSP they hold an account with, the user can enter _any_ 
+identifier they use to log in with their DFSP.
 
-This means a modified `GET /parties` call, where the `FSPIOP-Destination` is already set by the PISP.
+This means a modified `GET /parties` call, where the `FSPIOP-Destination` is already set
+by the PISP.
 
 ```
 FSPIOP-Source: pispa
@@ -188,18 +222,23 @@ GET /parties/OPAQUE/+4412345678      //MSISDN
 GET /parties/OPAQUE/ldaly            //some username the dfsp knows about
 ```
 
-The switch should handle this call by forwarding it directly to the DFSP, and not performing the internal `GET /participants` call.
+The switch should handle this call by forwarding it directly to the DFSP, and not performing
+the internal `GET /participants` call.
 
 For more information, see this [pisp#28](https://github.com/mojaloop/pisp/issues/28)
 
 #### 3.3 Custom HTTP Methods
 
-In the proposed Thirdparty-API, there are a number of places where we employ [custom methods](https://google.aip.dev/136) to 
+In the proposed Thirdparty-API, there are a number of places where we employ 
+[custom methods](https://google.aip.dev/136) to express a concept in the API
+not easily expressed through the typical `POST`, `PUT` or `PATCH` HTTP Verbs
+we favour in the FSPIOP-API.
 
-From the Google API Design Principles, custom methods:
-> "provide a means to express arbitrary actions that are difficult to model using only the standard methods"
+From the [Google API Design Principles](https://google.aip.dev/136), custom 
+methods _"provide a means to express arbitrary actions that are difficult to model using only the standard methods"_
 
-For example the Generate Challenge Request, where a PISP requests a challenge on a newly created Consent Object:
+For example the Generate Challenge Request, where a PISP requests a challenge
+on a newly created Consent Object:
 
 ```
 POST /consents/{id}/generateChallenge
@@ -209,8 +248,9 @@ Accept: vnd..todo
 {}
 ```
 
-The concept of Generating a Challenge for a previously registered Consent object is difficult to express using typical REST semantics, and so we employ the custom method `generateChallenge`.
-
+The concept of Generating a Challenge for a previously registered Consent 
+object is difficult to express using typical REST semantics, and so we employ 
+the custom method `generateChallenge`.
 
 ## HTTP Request Descriptions
 
@@ -255,5 +295,6 @@ The concept of Generating a Challenge for a previously registered Consent object
 
 ### Consent
 
-
 ### Credential
+
+... any more?
